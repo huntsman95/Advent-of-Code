@@ -16,14 +16,14 @@ class AlmanacRow {
         $this.Range = $Range
     }
 
-    AlmanacRow([string]$UnparsedInput) {
-        if ($UnparsedInput -notmatch '\d+ \d+ \d+') {
-            throw "Input Data in Wrong Format - expected '<INT64> <INT64> <INT64>'"
+    AlmanacRow([string]$UnparsedInputInteger) {
+        if ($UnparsedInputInteger -notmatch '\d+ \d+ \d+') {
+            throw "InputInteger Data in Wrong Format - expected '<INT64> <INT64> <INT64>'"
         }
-        $_InputArray = $UnparsedInput -split " "
-        $this.DestStart = $_InputArray[0]
-        $this.SrcStart = $_InputArray[1]
-        $this.Range = $_InputArray[2]
+        $_InputIntegerArray = $UnparsedInputInteger -split " "
+        $this.DestStart = $_InputIntegerArray[0]
+        $this.SrcStart = $_InputIntegerArray[1]
+        $this.Range = $_InputIntegerArray[2]
     }
 
     [pscustomobject[]] Explode() {
@@ -92,15 +92,43 @@ function Get-MappingNumber {
     }
 }
 
+#Part 2 Seed Class
+class SeedRange {
+    [Int64]$SeedStart
+    [Int64]$SeedEnd
+    SeedRange([Int64]$Start, [Int64]$Range) {
+        $this.SeedStart = $Start
+        $this.SeedEnd = $Start + ($Range - 1)
+    }
+    [bool] WithinRange([Int64]$InputInteger) {
+        return ($InputInteger -le $this.SeedEnd) -and ($InputInteger -ge $this.SeedStart)
+    }
+}
+
+class SeedRangeParser {
+    [SeedRange[]]$SeedRanges
+    SeedRangeParser([Int64[]]$SeedValues){
+        if(1 -eq $SeedValues.Count % 2){throw "Input array must contain an even number of elements"}
+        $PairCount = $SeedValues.Count / 2
+        for ($i = 1; $i -le $PairCount; $i++) {
+            $_Range = [SeedRange]::new(($SeedValues[$PairCount * 2 - 1]),($SeedValues[$PairCount * 2]))
+            $this.SeedRanges += $_Range
+        }
+    }
+}
+
 class Almanac {
     [Int64[]]$SeedValues
-    [Object[]]$SeedToSoilMap #Type AlmanacRow
+    [Object[]]$SeedToSoilMap
     [Object[]]$SoilToFertilizerMap
     [Object[]]$FertilizerToWaterMap
     [Object[]]$WaterToLightMap
     [Object[]]$LightToTemperatureMap
     [Object[]]$TemperatureToHumidityMap
     [Object[]]$HumidityToLocationMap
+
+    #Part 2
+    [SeedRange[]]$SeedRanges
 
     Almanac([string]$FilePath) {
         $SourceData = Get-Content $FilePath -Raw
@@ -122,7 +150,7 @@ class Almanac {
         $this.HumidityToLocationMap = Get-MapData -MapIdentifier "humidity-to-location map" -TableMatches $TableMatches
     }
 
-    [pscustomobject] GetPuzzleAnswer() {
+    [pscustomobject] GetPuzzleAnswerPart1() {
         # Gets the lowest location number that corresponds to any of the initial seed numbers
         $Answer = $this.SeedValues | ForEach-Object { $_ | Get-MappingNumber -AlmanacRows $Almanac.SeedToSoilMap `
             | Get-MappingNumber -AlmanacRows $Almanac.SoilToFertilizerMap `
@@ -137,8 +165,16 @@ class Almanac {
         }
     }
 
+    [pscustomobject] GetPuzzleAnswerPart2() {
+        # Gets the lowest location number that corresponds to any of the initial seed numbers
+        $parser = [SeedRangeParser]::new($this.SeedValues)
+        return [PSCustomObject]@{
+            Answer = $parser.SeedRanges
+        }
+    }
 }
 
 $Almanac = [Almanac]::new($FilePath)
 
-$Almanac.GetPuzzleAnswer()
+# $Almanac.GetPuzzleAnswerPart1()
+$Almanac.GetPuzzleAnswerPart2()
