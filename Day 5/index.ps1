@@ -21,8 +21,8 @@ class AlmanacRow {
         $this.Range = $Range
     }
 
-    AlmanacRow([string]$UnparsedInput){
-        if($UnparsedInput -notmatch '\d+ \d+ \d+'){
+    AlmanacRow([string]$UnparsedInput) {
+        if ($UnparsedInput -notmatch '\d+ \d+ \d+') {
             throw "Input Data in Wrong Format - expected '<INT64> <INT64> <INT64>'"
         }
         $_InputArray = $UnparsedInput -split " "
@@ -74,6 +74,16 @@ function New-PSObjectArrayFromAlmanacRow {
 #     }
 # }
 
+function Get-MapData {
+    Param(
+        [System.Text.RegularExpressions.MatchCollection]$TableMatches
+        ,
+        [string]$MapIdentifier
+    )
+        $TableMatches.Where({ $_.Groups[1].Value -eq $MapIdentifier }).Groups[2].Value.Trim() -split [System.Environment]::NewLine | ForEach-Object { [AlmanacRow]::new($_) }
+        # $TableMatches[0].Groups[2].Value.trim() -split [System.Environment]::NewLine | ForEach-Object {[AlmanacRow]::new($_)}
+}
+
 class Almanac {
     [Int64[]]$SeedValues
     [Object[]]$SeedToSoilMap #Type AlmanacRow
@@ -83,18 +93,39 @@ class Almanac {
     [Object[]]$LightToTemperatureMap
     [Object[]]$TemperatureToHumidityMap
     [Object[]]$HumidityToLocationMap
+
+    Almanac([string]$FilePath) {
+        $SourceData = Get-Content $FilePath -Raw
+
+        # Get seed numbers
+        $SeedRegex = "seeds: ([\d\s]+)"
+        $this.SeedValues = [Int64[]](([regex]::Match($SourceData, $SeedRegex).Groups[1].Value).Trim() -split " ")
+
+        # Get Maps
+        $TableMatches = [regex]::Matches($SourceData, '([\w+\-+]+ map):\r\n([\d \r\n]+)\r\n')
+
+        # Get Seed to Soil Map
+        $this.SeedToSoilMap = Get-MapData -MapIdentifier "seed-to-soil map" -TableMatches $TableMatches
+        $this.SoilToFertilizerMap = Get-MapData -MapIdentifier "soil-to-fertilizer map" -TableMatches $TableMatches
+        $this.FertilizerToWaterMap = Get-MapData -MapIdentifier "fertilizer-to-water map" -TableMatches $TableMatches
+        $this.WaterToLightMap = Get-MapData -MapIdentifier "water-to-light map" -TableMatches $TableMatches
+        $this.LightToTemperatureMap = Get-MapData -MapIdentifier "light-to-temperature map" -TableMatches $TableMatches
+        $this.TemperatureToHumidityMap = Get-MapData -MapIdentifier "temperature-to-humidity map" -TableMatches $TableMatches
+        $this.HumidityToLocationMap = Get-MapData -MapIdentifier "humidity-to-location map" -TableMatches $TableMatches
+    }
+
+    [int64] LowestLocationNumberForSeedInputs() {
+        
+        return 0 #comment this out later
+    }
 }
 
 
 $SrcFilePath = "$PSScriptRoot\source_data.txt"
+$Almanac = [Almanac]::new($SrcFilePath)
 
-$SourceData = Get-Content $SrcFilePath -Raw
 
-$SeedRegex = "seeds: ([\d\s]+)"
-[Int64[]]$SeedValues = [Int64[]](([regex]::Match($SourceData, $SeedRegex).Groups[1].Value).Trim() -split " ") | Sort-Object
 
-$regexOptions = [System.Text.RegularExpressions.RegexOptions]::Singleline -bor [System.Text.RegularExpressions.RegexOptions]::IgnoreCase -bor [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+# $TableMatches = [regex]::Matches($SourceData, '([\w+\-+]+ map):\r\n([\d \r\n]+)\r\n')
 
-$TableMatches = [regex]::Matches($SourceData, '([\w+\-+]+ map):\r\n([\d \r\n]+)\r\n')
-
-$TableMatches[0].Groups[2].Value.trim() -split [System.Environment]::NewLine | ForEach-Object {[AlmanacRow]::new($_)} -OutVariable testttt
+# $TableMatches[0].Groups[2].Value.trim() -split [System.Environment]::NewLine | ForEach-Object {[AlmanacRow]::new($_)} -OutVariable testttt

@@ -8,3 +8,12 @@ Hint: initial seed numbers are:
 
 ## Layout
 DestStart | SrcStart | Range
+
+## Table identifiers
+seed-to-soil map
+soil-to-fertilizer map
+fertilizer-to-water map
+water-to-light map
+light-to-temperature map
+temperature-to-humidity map
+humidity-to-location map
