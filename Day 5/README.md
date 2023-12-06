@@ -1,5 +1,8 @@
 # Day 5
 
+## RUNNING THE SCRIPT
+Run `.\index.ps1 -FilePath <PATH TO YOUR PUZZLE INPUT>` in PowerShell 7 (not tested in 5.1)
+
 ## Question to solve
 What is the lowest location number that corresponds to any of the initial seed numbers?
 

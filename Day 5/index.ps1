@@ -1,15 +1,10 @@
-class MappingTable {
-    [System.Collections.Generic.List[Object[]]] $Rows
-    [string] $TableName
-    MappingTable($TableName) {
-        <# Initialize the class. Use $this to reference the properties of the instance you are creating #>
-        $this.TableName = $TableName
-    }
-
-    [void] AddRow([AlmanacRow]$RowContent) {
-        $this.Rows.Add($RowContent)
-    }
-}
+[CmdletBinding()]
+param (
+    [Parameter()]
+    [ValidateScript({ if (-not(Test-Path $_)) { throw [system.io.filenotfoundexception]::new() } })]
+    [string]
+    $FilePath = "$PSScriptRoot\source_data.txt"
+)
 
 class AlmanacRow {
     [Int64]$DestStart
@@ -80,6 +75,23 @@ function Get-MapData {
     $TableMatches.Where({ $_.Groups[1].Value -eq $MapIdentifier }).Groups[2].Value.Trim() -split [System.Environment]::NewLine | ForEach-Object { [AlmanacRow]::new($_) }
 }
 
+function Get-MappingNumber {
+    param (
+        [Parameter(ValueFromPipeline = $true)]
+        [Int64]$Number
+        ,
+        [AlmanacRow[]]$AlmanacRows
+    )
+    $results = $AlmanacRows.where({ $Number -ge $_.SrcStart -and $Number -lt $_.SrcStart + $_.Range })
+    if ($null -eq $results) {
+        return $Number
+    }
+    else {
+        $dstNumber = ($Number - $results.SrcStart) + $results.DestStart
+        return $dstNumber
+    }
+}
+
 class Almanac {
     [Int64[]]$SeedValues
     [Object[]]$SeedToSoilMap #Type AlmanacRow
@@ -110,42 +122,23 @@ class Almanac {
         $this.HumidityToLocationMap = Get-MapData -MapIdentifier "humidity-to-location map" -TableMatches $TableMatches
     }
 
-    [void] LowestLocationNumberForSeedInputs() {
-        $this.SeedValues | ForEach-Object {
-            $__ = $_
-            $this.SeedToSoilMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
-                $__ = $_
-                $this.SoilToFertilizerMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
-                    $__ = $_
-                    $this.FertilizerToWaterMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
-                        $__ = $_
-                        $this.WaterToLightMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
-                            $__ = $_
-                            $this.LightToTemperatureMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
-                                $__ = $_
-                                $this.TemperatureToHumidityMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
-                                    $__ = $_
-                                    $this.HumidityToLocationMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
-                                        
-                                        Write-Host $_.DestStart
-                                    }
-                                }
-                            }
-                        }
-                    }  
-                }
-            }
+    [pscustomobject] GetPuzzleAnswer() {
+        # Gets the lowest location number that corresponds to any of the initial seed numbers
+        $Answer = $this.SeedValues | ForEach-Object { $_ | Get-MappingNumber -AlmanacRows $Almanac.SeedToSoilMap `
+            | Get-MappingNumber -AlmanacRows $Almanac.SoilToFertilizerMap `
+            | Get-MappingNumber -AlmanacRows $Almanac.FertilizerToWaterMap `
+            | Get-MappingNumber -AlmanacRows $Almanac.WaterToLightMap `
+            | Get-MappingNumber -AlmanacRows $Almanac.LightToTemperatureMap `
+            | Get-MappingNumber -AlmanacRows $Almanac.TemperatureToHumidityMap `
+            | Get-MappingNumber -AlmanacRows $Almanac.HumidityToLocationMap
+        } | Sort-Object -Top 1
+        return [PSCustomObject]@{
+            Answer = $Answer
         }
-        # return $null #comment this out later
     }
+
 }
 
+$Almanac = [Almanac]::new($FilePath)
 
-$SrcFilePath = "$PSScriptRoot\source_data.txt"
-$Almanac = [Almanac]::new($SrcFilePath)
-
-
-
-# $TableMatches = [regex]::Matches($SourceData, '([\w+\-+]+ map):\r\n([\d \r\n]+)\r\n')
-
-# $TableMatches[0].Groups[2].Value.trim() -split [System.Environment]::NewLine | ForEach-Object {[AlmanacRow]::new($_)} -OutVariable testttt
+$Almanac.GetPuzzleAnswer()
