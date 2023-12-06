@@ -106,13 +106,13 @@ class SeedRange {
 }
 
 class SeedRangeParser {
-    [SeedRange[]]$SeedRanges
+    [System.Collections.Generic.List[SeedRange[]]]$SeedRanges = [System.Collections.Generic.List[SeedRange[]]]::new()
     SeedRangeParser([Int64[]]$SeedValues){
         if(1 -eq $SeedValues.Count % 2){throw "Input array must contain an even number of elements"}
         $PairCount = $SeedValues.Count / 2
         for ($i = 1; $i -le $PairCount; $i++) {
-            $_Range = [SeedRange]::new(($SeedValues[$PairCount * 2 - 1]),($SeedValues[$PairCount * 2]))
-            $this.SeedRanges += $_Range
+            $_Range = [SeedRange]::new(($SeedValues[($i - 1) * 2]),($SeedValues[($i * 2) - 1]))
+            $this.SeedRanges.Add($_Range)
         }
     }
 }
