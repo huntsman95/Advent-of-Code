@@ -43,6 +43,14 @@ class AlmanacRow {
         }
         return $buffer
     }
+
+    [string]ToString() {
+        return [PSCustomObject]@{
+            SrcStart  = $this.SrcStart
+            DestStart = $this.DestStart
+            Range     = $this.Range
+        }
+    }
 }
 
 function New-PSObjectArrayFromAlmanacRow {
@@ -63,25 +71,13 @@ function New-PSObjectArrayFromAlmanacRow {
     [AlmanacRow]::new($DestinationStart, $SourceStart, $Range).ToPSObjectArray()
 }
 
-
-# class DataParser {
-#     [string]$SeedToSoilMap
-#     static [string]$SeedToSoilRegex = ""
-
-#     DataParser([string]$FilePath){
-#         $SrcData = Get-Content -Path $FilePath -Raw
-#         $
-#     }
-# }
-
 function Get-MapData {
     Param(
         [System.Text.RegularExpressions.MatchCollection]$TableMatches
         ,
         [string]$MapIdentifier
     )
-        $TableMatches.Where({ $_.Groups[1].Value -eq $MapIdentifier }).Groups[2].Value.Trim() -split [System.Environment]::NewLine | ForEach-Object { [AlmanacRow]::new($_) }
-        # $TableMatches[0].Groups[2].Value.trim() -split [System.Environment]::NewLine | ForEach-Object {[AlmanacRow]::new($_)}
+    $TableMatches.Where({ $_.Groups[1].Value -eq $MapIdentifier }).Groups[2].Value.Trim() -split [System.Environment]::NewLine | ForEach-Object { [AlmanacRow]::new($_) }
 }
 
 class Almanac {
@@ -114,9 +110,33 @@ class Almanac {
         $this.HumidityToLocationMap = Get-MapData -MapIdentifier "humidity-to-location map" -TableMatches $TableMatches
     }
 
-    [int64] LowestLocationNumberForSeedInputs() {
-        
-        return 0 #comment this out later
+    [void] LowestLocationNumberForSeedInputs() {
+        $this.SeedValues | ForEach-Object {
+            $__ = $_
+            $this.SeedToSoilMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
+                $__ = $_
+                $this.SoilToFertilizerMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
+                    $__ = $_
+                    $this.FertilizerToWaterMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
+                        $__ = $_
+                        $this.WaterToLightMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
+                            $__ = $_
+                            $this.LightToTemperatureMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
+                                $__ = $_
+                                $this.TemperatureToHumidityMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
+                                    $__ = $_
+                                    $this.HumidityToLocationMap.where({ $_.SrcStart -le $__ -and $_.SrcStart + $_.Range -gt $__ }) | ForEach-Object {
+                                        
+                                        Write-Host $_.DestStart
+                                    }
+                                }
+                            }
+                        }
+                    }  
+                }
+            }
+        }
+        # return $null #comment this out later
     }
 }
 
