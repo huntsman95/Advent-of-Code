@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param (
     [Parameter()]
-    [ValidateScript({ if (-not(Test-Path $_)) { throw [system.io.filenotfoundexception]::new() } })]
+    [ValidateScript({ if (-not(Resolve-Path $_)) { throw [system.io.filenotfoundexception]::new() }; return $true })]
     [string]
     $FilePath = "$PSScriptRoot\source_data.txt"
 )
