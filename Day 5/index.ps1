@@ -24,7 +24,7 @@ class AlmanacRow {
         if ($UnparsedInputInteger -notmatch '\d+ \d+ \d+') {
             throw "InputInteger Data in Wrong Format - expected '<INT64> <INT64> <INT64>'"
         }
-        $_InputIntegerArray = $UnparsedInputInteger -split " "
+        $_InputIntegerArray = $UnparsedInputInteger -split ' '
         $this.DestStart = $_InputIntegerArray[0]
         $this.DestEnd = [Int64]$_InputIntegerArray[0] + [Int64]($_InputIntegerArray[2] - 1)
         $this.SrcStart = $_InputIntegerArray[1]
@@ -87,7 +87,7 @@ class SeedRange {
 class SeedRangeParser {
     [System.Collections.Generic.List[SeedRange]]$SeedRanges = [System.Collections.Generic.List[SeedRange]]::new()
     SeedRangeParser([Int64[]]$SeedValues) {
-        if (1 -eq $SeedValues.Count % 2) { throw "Input array must contain an even number of elements" }
+        if (1 -eq $SeedValues.Count % 2) { throw 'Input array must contain an even number of elements' }
         $PairCount = $SeedValues.Count / 2
         for ($i = 1; $i -le $PairCount; $i++) {
             $_Range = [SeedRange]::new(($SeedValues[($i - 1) * 2]), ($SeedValues[($i * 2) - 1]))
@@ -113,20 +113,20 @@ class Almanac {
         $SourceData = Get-Content $FilePath -Raw
 
         # Get seed numbers
-        $SeedRegex = "seeds: ([\d\s]+)"
-        $this.SeedValues = [Int64[]](([regex]::Match($SourceData, $SeedRegex).Groups[1].Value).Trim() -split " ")
+        $SeedRegex = 'seeds: ([\d\s]+)'
+        $this.SeedValues = [Int64[]](([regex]::Match($SourceData, $SeedRegex).Groups[1].Value).Trim() -split ' ')
 
         # Get Maps
         $TableMatches = [regex]::Matches($SourceData, '([\w+\-+]+ map):\r\n([\d \r\n]+)\r\n')
 
         # Get Seed to Soil Map
-        $this.SeedToSoilMap = Get-MapData -MapIdentifier "seed-to-soil map" -TableMatches $TableMatches
-        $this.SoilToFertilizerMap = Get-MapData -MapIdentifier "soil-to-fertilizer map" -TableMatches $TableMatches
-        $this.FertilizerToWaterMap = Get-MapData -MapIdentifier "fertilizer-to-water map" -TableMatches $TableMatches
-        $this.WaterToLightMap = Get-MapData -MapIdentifier "water-to-light map" -TableMatches $TableMatches
-        $this.LightToTemperatureMap = Get-MapData -MapIdentifier "light-to-temperature map" -TableMatches $TableMatches
-        $this.TemperatureToHumidityMap = Get-MapData -MapIdentifier "temperature-to-humidity map" -TableMatches $TableMatches
-        $this.HumidityToLocationMap = Get-MapData -MapIdentifier "humidity-to-location map" -TableMatches $TableMatches
+        $this.SeedToSoilMap = Get-MapData -MapIdentifier 'seed-to-soil map' -TableMatches $TableMatches
+        $this.SoilToFertilizerMap = Get-MapData -MapIdentifier 'soil-to-fertilizer map' -TableMatches $TableMatches
+        $this.FertilizerToWaterMap = Get-MapData -MapIdentifier 'fertilizer-to-water map' -TableMatches $TableMatches
+        $this.WaterToLightMap = Get-MapData -MapIdentifier 'water-to-light map' -TableMatches $TableMatches
+        $this.LightToTemperatureMap = Get-MapData -MapIdentifier 'light-to-temperature map' -TableMatches $TableMatches
+        $this.TemperatureToHumidityMap = Get-MapData -MapIdentifier 'temperature-to-humidity map' -TableMatches $TableMatches
+        $this.HumidityToLocationMap = Get-MapData -MapIdentifier 'humidity-to-location map' -TableMatches $TableMatches
 
         $this.SeedRanges = [SeedRangeParser]::new($this.SeedValues).SeedRanges
     }
@@ -146,24 +146,27 @@ class Almanac {
         }
     }
 
-    [pscustomobject] GetPuzzleAnswerPart2() {
+    [pscustomobject] BruteForcePuzzleAnswerPart2() {
         $buffer = [System.Collections.Generic.List[Int64]]::new()
-        # Gets the lowest location number that corresponds to any of the initial seed numbers
-        # $parser = [SeedRangeParser]::new($this.SeedValues)
-        # $SeedRanges = $parser.SeedRanges
-        # Gets the lowest location number that corresponds to any of the initial seed numbers
+        # Gets the lowest location number that corresponds to any of the initial seed number ranges by brute force
         $i = 1
         $this.SeedRanges | ForEach-Object {
             # Write-Progress -Activity "Working on SeedRange $i of $($SeedRanges.Count)" -PercentComplete ($i / $SeedRanges.Count * 100)
             ($_.SeedStart)..($_.SeedEnd) | ForEach-Object {
-                Write-Progress -Activity "SeedNumber $($_) of $($SeedRanges[$i-1].SeedEnd)" -PercentComplete ($_ / $($SeedRanges[$i - 1].SeedEnd) * 100)
-                $Value = $_  | Get-MappingNumber -AlmanacRows $this.SeedToSoilMap `
-                    $buffer.Add($Value)
+                Write-Progress -Activity "SeedNumber $($_) of $($this.SeedRanges[$i-1].SeedEnd)" -PercentComplete ($_ / $($this.SeedRanges[$i - 1].SeedEnd) * 100)
+                $Value = $_ | Get-MappingNumber -AlmanacRows $this.SeedToSoilMap `
+                | Get-MappingNumber -AlmanacRows $this.SoilToFertilizerMap `
+                | Get-MappingNumber -AlmanacRows $this.FertilizerToWaterMap `
+                | Get-MappingNumber -AlmanacRows $this.WaterToLightMap `
+                | Get-MappingNumber -AlmanacRows $this.LightToTemperatureMap `
+                | Get-MappingNumber -AlmanacRows $this.TemperatureToHumidityMap `
+                | Get-MappingNumber -AlmanacRows $this.HumidityToLocationMap
+                $buffer.Add($Value)
             }
             $i++
         }
         return [PSCustomObject]@{
-            Answer = $buffer
+            Answer = $buffer | Sort-Object -Top 1
         }
     }
 }
@@ -177,80 +180,84 @@ function Invoke-Day5Puzzle {
     $Almanac.GetPuzzleAnswerPart2()
 }
 
+$Almanac = [Almanac]::new($FilePath)
 
 
 # Invoke-Day5Puzzle -FilePath $FilePath
 
-$Almanac = [Almanac]::new($FilePath)
 
-#Start with list of locations (FLOOR)
-$HtoL = [System.Linq.Enumerable]::OrderBy(($Almanac.HumidityToLocationMap), [Func[Object, Object]] { $args[0].DestStart })
+# # Invoke-Day5Puzzle -FilePath $FilePath
 
-function Get-ValidMapResults {
-    [CmdletBinding()]
-    param (
-        [Parameter()]
-        [AlmanacRow[]]
-        $Map
-        ,
-        [Parameter(ValueFromPipeline = $true)]
-        [AlmanacRow]
-        $SourceRow
-    )
-    process {
-        $Map.where({ $SourceRow.SrcStart -ge $_.DestStart -and $SourceRow.SrcEnd -le $_.SrcEnd })
-    }
-}
+# $Almanac = [Almanac]::new($FilePath)
+
+# #Start with list of locations (FLOOR)
+# $HtoL = [System.Linq.Enumerable]::OrderBy(($Almanac.HumidityToLocationMap), [Func[Object, Object]] { $args[0].DestStart })
+
+# function Get-ValidMapResults {
+#     [CmdletBinding()]
+#     param (
+#         [Parameter()]
+#         [AlmanacRow[]]
+#         $Map
+#         ,
+#         [Parameter(ValueFromPipeline = $true)]
+#         [AlmanacRow]
+#         $SourceRow
+#     )
+#     process {
+#         $Map.where({ $SourceRow.SrcStart -ge $_.DestStart -and $SourceRow.SrcEnd -le $_.SrcEnd })
+#     }
+# }
 
 
-function Get-ValidSubTableValues {
-    [CmdletBinding()]
-    param (
-        [Parameter()]
-        [AlmanacRow[]]
-        $Map
-        ,
-        [Parameter(ValueFromPipeline = $true)]
-        [AlmanacRow]
-        $SourceRow
-    )
-    process {
-        $Map.where({ $SourceRow.DestStart -ge $_.SrcStart -and $SourceRow.DestEnd -le $_.SrcEnd })
-    }
-}
+# function Get-ValidSubTableValues {
+#     [CmdletBinding()]
+#     param (
+#         [Parameter()]
+#         [AlmanacRow[]]
+#         $Map
+#         ,
+#         [Parameter(ValueFromPipeline = $true)]
+#         [AlmanacRow]
+#         $SourceRow
+#     )
+#     process {
+#         $Map.where({ $SourceRow.DestStart -ge $_.SrcStart -and $SourceRow.DestEnd -le $_.SrcEnd })
+#     }
+# }
 
-function Test-InputForIntersect {
-    [CmdletBinding()]
-    param (
-        [Parameter()]
-        [AlmanacRow]
-        $SourceRow
-        ,
-        [Parameter()]
-        [AlmanacRow]
-        $DestRow
-    )
-    process {
-        $a1 = $SourceRow.DestStart
-        $a2 = $SourceRow.DestEnd
-        $b1 = $DestRow.SrcStart
-        $b2 = $DestRow.DestEnd
+# function Test-InputForIntersect {
+#     [CmdletBinding()]
+#     param (
+#         [Parameter()]
+#         [AlmanacRow]
+#         $SourceRow
+#         ,
+#         [Parameter()]
+#         [AlmanacRow]
+#         $DestRow
+#     )
+#     process {
+#         $a1 = $SourceRow.DestStart
+#         $a2 = $SourceRow.DestEnd
+#         $b1 = $DestRow.SrcStart
+#         $b2 = $DestRow.DestEnd
 
-        [int64]::IsPositive([math]::Min($a2, $b2) - [Math]::Max($a1, $b1) + 1)
-    }
-}
+#         [int64]::IsPositive([math]::Min($a2, $b2) - [Math]::Max($a1, $b1) + 1)
+#     }
+# }
 
-$j = $Almanac.SeedRanges | foreach-object {
-    [AlmanacRow]::new([int64]$_.SeedStart, [int64]$_.SeedEnd)
-}
+# $j = $Almanac.SeedRanges | foreach-object {
+#     [AlmanacRow]::new([int64]$_.SeedStart, [int64]$_.SeedEnd)
+# }
 
-for ($i = 0; $i -lt $j.Count; $i++) {
-    $Almanac.SeedToSoilMap | foreach-object {
-        if (Test-InputForIntersect -SourceRow $j[$i] -DestRow $_) {
-            $_
-        }
-    }
-}
+# for ($i = 0; $i -lt $j.Count; $i++) {
+#     $Almanac.SeedToSoilMap | foreach-object {
+#         if (Test-InputForIntersect -SourceRow $j[$i] -DestRow $_) {
+#             $_
+#         }
+#     }
+# }
 
 
 
