@@ -37,7 +37,7 @@ class AlmanacRow {
         $this.DestEnd = $SeedEnd
         $this.SrcStart = 0
         $this.SrcEnd = 0
-        $this.Range = $SeedEnd - $SeedStart
+        $this.Range = $SeedEnd - $SeedStart + 1
     }
 
     [string]ToString() {
@@ -171,6 +171,30 @@ class Almanac {
     }
 }
 
+
+class OverlapChecker {
+    [AlmanacRow]$NoOverlap
+    [AlmanacRow]$LeftOverlap
+    [AlmanacRow]$RightOverlap
+    OverlapChecker([AlmanacRow]$SourceAlmanacRow, [AlmanacRow[]]$DestinationMap) {
+        foreach ($_Row in $DestinationMap) {
+            if (-not($SourceAlmanacRow.DestStart -le $_Row.SrcEnd -and $_Row.SrcStart -le $SourceAlmanacRow.DestEnd)) {
+                break #Dont bother processing if there is no intersect
+            }
+            if ($_Row.SrcStart -lt $SourceAlmanacRow.DestStart) {
+                $this.NoOverlap = ($SourceAlmanacRow.DestStart - $_Row.SrcStart) + $SourceAlmanacRow.DestStart
+            }
+            elseif ($_Row.SrcStart -gt $SourceAlmanacRow.DestStart) {
+                $this.NoOverlap = $SourceAlmanacRow.DestEnd - ($SourceAlmanacRow.DestEnd - $_Row.DestStart)
+            }
+            ###
+            # Case 1 - Center overlap (source smaller than dest and in middle)
+            # Case 2 - Spillover overlap (Source larger than dest and dest falls in middle)
+            # Case 3 - Left overlap ()
+        }
+    }
+}
+
 function Invoke-Day5Puzzle {
     param (
         [string]$FilePath
@@ -181,108 +205,3 @@ function Invoke-Day5Puzzle {
 }
 
 $Almanac = [Almanac]::new($FilePath)
-
-
-# Invoke-Day5Puzzle -FilePath $FilePath
-
-
-# # Invoke-Day5Puzzle -FilePath $FilePath
-
-# $Almanac = [Almanac]::new($FilePath)
-
-# #Start with list of locations (FLOOR)
-# $HtoL = [System.Linq.Enumerable]::OrderBy(($Almanac.HumidityToLocationMap), [Func[Object, Object]] { $args[0].DestStart })
-
-# function Get-ValidMapResults {
-#     [CmdletBinding()]
-#     param (
-#         [Parameter()]
-#         [AlmanacRow[]]
-#         $Map
-#         ,
-#         [Parameter(ValueFromPipeline = $true)]
-#         [AlmanacRow]
-#         $SourceRow
-#     )
-#     process {
-#         $Map.where({ $SourceRow.SrcStart -ge $_.DestStart -and $SourceRow.SrcEnd -le $_.SrcEnd })
-#     }
-# }
-
-
-# function Get-ValidSubTableValues {
-#     [CmdletBinding()]
-#     param (
-#         [Parameter()]
-#         [AlmanacRow[]]
-#         $Map
-#         ,
-#         [Parameter(ValueFromPipeline = $true)]
-#         [AlmanacRow]
-#         $SourceRow
-#     )
-#     process {
-#         $Map.where({ $SourceRow.DestStart -ge $_.SrcStart -and $SourceRow.DestEnd -le $_.SrcEnd })
-#     }
-# }
-
-# function Test-InputForIntersect {
-#     [CmdletBinding()]
-#     param (
-#         [Parameter()]
-#         [AlmanacRow]
-#         $SourceRow
-#         ,
-#         [Parameter()]
-#         [AlmanacRow]
-#         $DestRow
-#     )
-#     process {
-#         $a1 = $SourceRow.DestStart
-#         $a2 = $SourceRow.DestEnd
-#         $b1 = $DestRow.SrcStart
-#         $b2 = $DestRow.DestEnd
-
-#         [int64]::IsPositive([math]::Min($a2, $b2) - [Math]::Max($a1, $b1) + 1)
-#     }
-# }
-
-# $j = $Almanac.SeedRanges | foreach-object {
-#     [AlmanacRow]::new([int64]$_.SeedStart, [int64]$_.SeedEnd)
-# }
-
-# for ($i = 0; $i -lt $j.Count; $i++) {
-#     $Almanac.SeedToSoilMap | foreach-object {
-#         if (Test-InputForIntersect -SourceRow $j[$i] -DestRow $_) {
-#             $_
-#         }
-#     }
-# }
-
-
-
-# function Get-SeedWithinRangeResult {
-
-# }
-
-# $HtoL | ForEach-Object {
-#     $HumidityToLocationMapValidVals = $_ | Get-ValidMapResults -Map $Almanac.TemperatureToHumidityMap | Select-Object -Unique
-
-#     [PSCustomObject]@{
-#         LocationNumberStart = $_.DestStart
-#         LocationNumberEnd = $_.DestEnd
-#         HumidityToLocationMapValidVals = $HumidityToLocationMapValidVals | Select-Object DestStart, DestEnd
-#     }
-# }
-# $TtoH = $Almanac.TemperatureToHumidityMap.where({ $HtoL[0].SrcStart -ge $_.DestStart -and $HtoL[0].SrcEnd -le $_.SrcEnd })
-# $LtoT = $Almanac.LightToTemperatureMap.where({ $TtoH[0].SrcStart -ge $_.DestStart -and $TtoH[0].SrcEnd -le $_.SrcEnd })
-# $WtoL = $Almanac.WaterToLightMap.where({ $LtoT[0].SrcStart -ge $_.DestStart -and $LtoT[0].SrcEnd -le $_.SrcEnd })
-# $FtoW = $Almanac.FertilizerToWaterMap.where({ $WtoL[0].SrcStart -ge $_.DestStart -and $WtoL[0].SrcEnd -le $_.SrcEnd })
-# $StoF = $Almanac.SoilToFertilizerMap.where({ $FtoW[0].SrcStart -ge $_.DestStart -and $FtoW[0].SrcEnd -le $_.SrcEnd })
-
-# $Almanac.TemperatureToHumidityMap
-
-
-
-# # $Almanac.GetPuzzleAnswerPart1()
-# $Almanac.GetPuzzleAnswerPart2()
