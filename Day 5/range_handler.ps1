@@ -22,6 +22,7 @@ class RangeOverlapCalculator {
     RangeOverlapCalculator([PSRange]$RangeA, [PSRange]$RangeB) {
         if (-not($RangeA.Start -le $RangeB.End -and $RangeB.Start -le $RangeA.End)) {
             $this.Overlaps = $false
+            $this.NonOverlappingRanges = $RangeA
             return #Dont bother processing if there is no intersect
         }
         else {

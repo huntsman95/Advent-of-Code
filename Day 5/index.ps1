@@ -6,6 +6,8 @@ param (
     $FilePath = "$PSScriptRoot\source_data.txt"
 )
 
+. $PSScriptRoot\range_handler.ps1
+
 class AlmanacRow {
     [Int64]$DestStart
     [Int64]$DestEnd
@@ -171,30 +173,6 @@ class Almanac {
     }
 }
 
-
-class OverlapChecker {
-    [AlmanacRow]$NoOverlap
-    [AlmanacRow]$LeftOverlap
-    [AlmanacRow]$RightOverlap
-    OverlapChecker([AlmanacRow]$SourceAlmanacRow, [AlmanacRow[]]$DestinationMap) {
-        foreach ($_Row in $DestinationMap) {
-            if (-not($SourceAlmanacRow.DestStart -le $_Row.SrcEnd -and $_Row.SrcStart -le $SourceAlmanacRow.DestEnd)) {
-                break #Dont bother processing if there is no intersect
-            }
-            if ($_Row.SrcStart -lt $SourceAlmanacRow.DestStart) {
-                $this.NoOverlap = ($SourceAlmanacRow.DestStart - $_Row.SrcStart) + $SourceAlmanacRow.DestStart
-            }
-            elseif ($_Row.SrcStart -gt $SourceAlmanacRow.DestStart) {
-                $this.NoOverlap = $SourceAlmanacRow.DestEnd - ($SourceAlmanacRow.DestEnd - $_Row.DestStart)
-            }
-            ###
-            # Case 1 - Center overlap (source smaller than dest and in middle)
-            # Case 2 - Spillover overlap (Source larger than dest and dest falls in middle)
-            # Case 3 - Left overlap ()
-        }
-    }
-}
-
 function Invoke-Day5Puzzle {
     param (
         [string]$FilePath
@@ -205,3 +183,56 @@ function Invoke-Day5Puzzle {
 }
 
 $Almanac = [Almanac]::new($FilePath)
+
+function Get-OverlapAlmanacRow {
+    [CmdletBinding()]
+    param (
+        [Parameter(ValueFromPipeline = $true)]
+        [AlmanacRow]
+        $SourceRow
+        ,
+        [Parameter()]
+        [AlmanacRow[]]
+        $DestMap
+    )
+    process {
+        $buffer = [System.Collections.Generic.List[AlmanacRow]]::new()
+        $DestMap | ForEach-Object {
+            $_offset = $_.DestStart - $_.SrcStart
+            $_tmp = Get-OverlappingRanges -RangeAStart $SourceRow.DestStart -RangeAEnd $SourceRow.DestEnd `
+                -RangeBStart $_.SrcStart -RangeBEnd $_.SrcEnd
+
+            $_tmp.NonOverlappingRanges | ForEach-Object {
+                # $_range = $_.End - $_.Start
+                $buffer.Add([AlmanacRow]::new($_.Start, $_.End))
+            }
+            $_tmp.OverlappingRanges | ForEach-Object {
+                $buffer.Add([AlmanacRow]::new(($_.Start + $_offset), ($_.End + $_offset)))
+            }
+        }
+        [System.Linq.Enumerable]::DistinctBy($buffer, ([Func[Object, String]] { $args[0].ToString() }))
+    }
+}
+
+# $result = $Almanac.SeedRanges | ForEach-Object {
+#     Get-OverlapAlmanacRow -SourceRow (New-Object AlmanacRow -ArgumentList $_.SeedStart, $_.SeedEnd) -DestMap $Almanac.SeedToSoilMap | Get-Unique `
+#     | Get-OverlapAlmanacRow -DestMap $Almanac.SoilToFertilizerMap | Get-Unique `
+#     | Get-OverlapAlmanacRow -DestMap $Almanac.FertilizerToWaterMap | Get-Unique `
+#     | Get-OverlapAlmanacRow -DestMap $Almanac.WaterToLightMap | Get-Unique `
+#     | Get-OverlapAlmanacRow -DestMap $Almanac.LightToTemperatureMap | Get-Unique `
+#     | Get-OverlapAlmanacRow -DestMap $Almanac.TemperatureToHumidityMap | Get-Unique
+# }
+
+# $result | Sort-Object -Property DestStart -Top 5
+
+
+# $Almanac.SeedRanges | ForEach-Object {
+#     $SeedRange = $_
+#     $jj = $Almanac.SeedToSoilMap | ForEach-Object {
+#         Get-OverlappingRanges $SeedRange.SeedStart $SeedRange.SeedEnd $_.SrcStart $_.SrcEnd
+#     }
+    
+#     $xDelegate = [Func[Object, string]] { '{0}-{1}-{2}' -f [string]$args[0].OverlapType, [string]$args[0].NonOverlappingRanges, [string]$args[0].OverlappingRanges }
+#     [System.Linq.Enumerable]::DistinctBy($jj, $xDelegate)
+#     # $jj
+# }
