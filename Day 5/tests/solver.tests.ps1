@@ -1,5 +1,5 @@
 BeforeAll {
-    . $PSScriptRoot\..\index.ps1 -FilePath "$PSScriptRoot\..\source_data.test.txt"
+    . $PSScriptRoot\..\solver.ps1 -FilePath "$PSScriptRoot\..\source_data.test.txt"
 }
 
 Describe 'AlmanacRow Class' {
@@ -42,7 +42,7 @@ Describe 'Puzzle 1 Solver' {
 Describe 'Puzzle 2 Solver' {
     It 'Should be able to solve puzzle 2 sample data' {
         $Almanac = [Almanac]::new($FilePath)
-        $Almanac.BruteForcePuzzleAnswerPart2() `
+        $Almanac.GetPuzzleAnswerPart2() `
         | Select-Object -ExpandProperty Answer `
         | Should -Be 46
     }

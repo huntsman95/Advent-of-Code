@@ -19,7 +19,11 @@ class RangeOverlapCalculator {
     [string]$OverlapType
     [System.Collections.Generic.List[PSRange]]$NonOverlappingRanges = [System.Collections.Generic.List[PSRange]]::new()
     [System.Collections.Generic.List[PSRange]]$OverlappingRanges = [System.Collections.Generic.List[PSRange]]::new()
+    [string]$RangeA
+    [string]$RangeB
     RangeOverlapCalculator([PSRange]$RangeA, [PSRange]$RangeB) {
+        $this.RangeA = '{0} - {1}' -f $RangeA.Start, $RangeA.End
+        $this.RangeB = '{0} - {1}' -f $RangeB.Start, $RangeB.End
         if (-not($RangeA.Start -le $RangeB.End -and $RangeB.Start -le $RangeA.End)) {
             $this.Overlaps = $false
             $this.NonOverlappingRanges = $RangeA
@@ -54,6 +58,9 @@ class RangeOverlapCalculator {
         }
     }
 
+    [string]ToString() {
+        return "RangeA: $($this.RangeA), RangeB: $($this.RangeB), Overlaps: $($this.Overlaps), OverlapType: $($this.OverlapType)"
+    }
 }
 
 function Get-OverlappingRanges {
